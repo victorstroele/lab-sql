@@ -1960,7 +1960,7 @@ buffer/index.js:
 </script>
 <script type="module">
 // ===== Configuração: o professor preenche o host do Neon antes de publicar =====
-const CONFIG = { host: '', database: 'neondb' };
+const CONFIG = { host: 'ep-red-star-b60nra2x.c-2.sa-east-1.aws.neon.tech', database: 'neondb' };
 // ===========================================================================
 const C = window.LabCore;
 const $ = (id) => document.getElementById(id);
@@ -2073,10 +2073,12 @@ $('run').onclick = () => run();
 
 function gridHTML(res, max = 200) {
   if (!res.fields || !res.fields.length) return '';
+  // linhas podem vir como array (rowMode 'array', preserva colunas com o mesmo nome) ou objeto
   const cols = res.fields.map((f) => f.name);
   const rows = res.rows.slice(0, max);
+  const cell = (v) => (v === null || v === undefined ? '<i class="muted">null</i>' : esc(v instanceof Date ? v.toISOString().slice(0, 10) : v));
   let h = '<div class="grid"><table><tr>' + cols.map((c) => `<th>${esc(c)}</th>`).join('') + '</tr>';
-  for (const r of rows) h += '<tr>' + cols.map((c) => `<td>${r[c] === null ? '<i class="muted">null</i>' : esc(r[c] instanceof Date ? r[c].toISOString().slice(0, 10) : r[c])}</td>`).join('') + '</tr>';
+  for (const r of rows) h += '<tr>' + cols.map((c, i) => `<td>${cell(Array.isArray(r) ? r[i] : r[c])}</td>`).join('') + '</tr>';
   h += '</table></div>';
   if (res.rows.length > max) h += `<div class="muted">mostrando ${max} de ${res.rows.length} linhas</div>`;
   return h;
@@ -2101,7 +2103,7 @@ async function run() {
     div.innerHTML = `<div class="t">executando…</div><pre>${esc(short(s.sql))}</pre>`; out.appendChild(div);
     const t0 = performance.now();
     try {
-      const r = await q(s.sql);
+      const r = await (await connect()).query({ text: s.sql, rowMode: 'array' });
       const res = Array.isArray(r) ? r[r.length - 1] : r;
       const ms = Math.round(performance.now() - t0);
       const cmd = res.command || C.commandOf(s.sql);
@@ -2154,7 +2156,7 @@ $('tbRef').onclick = loadTables;
 $('tbOut').onclick = async (ev) => {
   const b = ev.target.closest('[data-ver]'); if (!b) return;
   const slot = b.parentElement.nextElementSibling;
-  try { const r = await q(`select * from ${C.ident(b.dataset.ver)} limit 50`); slot.innerHTML = r.rows.length ? gridHTML(r, 50) : '<div class="muted">tabela vazia</div>'; }
+  try { const r = await (await connect()).query({ text: `select * from ${C.ident(b.dataset.ver)} limit 50`, rowMode: 'array' }); slot.innerHTML = r.rows.length ? gridHTML(r, 50) : '<div class="muted">tabela vazia</div>'; }
   catch (e) { slot.innerHTML = `<div class="res bad">${esc(e.message)}</div>`; }
 };
 
