@@ -2076,9 +2076,18 @@ function gridHTML(res, max = 200) {
   // linhas podem vir como array (rowMode 'array', preserva colunas com o mesmo nome) ou objeto
   const cols = res.fields.map((f) => f.name);
   const rows = res.rows.slice(0, max);
-  const cell = (v) => (v === null || v === undefined ? '<i class="muted">null</i>' : esc(v instanceof Date ? v.toISOString().slice(0, 10) : v));
+  // datas: date (OID 1082) só com o dia; timestamp/timestamptz com dia e hora, no horário local
+  const p2 = (n) => String(n).padStart(2, '0');
+  const fmtDate = (d, t) => {
+    const dia = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+    if (t === 1082) return dia;
+    const ms = d.getMilliseconds() ? '.' + String(d.getMilliseconds()).padStart(3, '0') : '';
+    return `${dia} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}${ms}`;
+  };
+  const types = res.fields.map((f) => f.dataTypeID);
+  const cell = (v, i) => (v === null || v === undefined ? '<i class="muted">null</i>' : esc(v instanceof Date ? fmtDate(v, types[i]) : v));
   let h = '<div class="grid"><table><tr>' + cols.map((c) => `<th>${esc(c)}</th>`).join('') + '</tr>';
-  for (const r of rows) h += '<tr>' + cols.map((c, i) => `<td>${cell(Array.isArray(r) ? r[i] : r[c])}</td>`).join('') + '</tr>';
+  for (const r of rows) h += '<tr>' + cols.map((c, i) => `<td>${cell(Array.isArray(r) ? r[i] : r[c], i)}</td>`).join('') + '</tr>';
   h += '</table></div>';
   if (res.rows.length > max) h += `<div class="muted">mostrando ${max} de ${res.rows.length} linhas</div>`;
   return h;
